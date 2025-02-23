@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Label Editor</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+
+        /* Label Rows */
+        .label-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px; /* Vertical separation between rows */
+        }
+        .label {
+            width: 18mm;
+            height: 30mm; /* Row height */
+            border: 1px solid #000;
+            margin-right: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: white;
+            cursor: pointer;
+            flex-shrink: 0; /* Prevent labels from shrinking */
+        }
+        .label.selected {
+            border-color: #007bff;
+        }
+        .label img {
+            max-width: 100%;
+            max-height: 70%;
+        }
+        .label input {
+            width: 80%;
+            margin-top: 5px;
+            text-align: center;
+        }
+        .stretch-button, .shrink-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 2px 5px;
+            cursor: pointer;
+            display: none;
+        }
+        .label.selected .stretch-button,
+        .label.selected .shrink-button {
+            display: block;
+        }
+        .shrink-button {
+            background-color: #ff1900;
+            right: 20px; /* Position the shrink button to the left of the stretch button */
+        }
+
+        /* Image Slider */
+        .image-slider {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            padding: 10px;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+        .slider {
+            display: flex;
+            overflow-x: auto;
+        }
+        .slider img {
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            flex-shrink: 0;
+        }
+        .slider img.selected {
+            border-color: #007bff;
+        }
+        .upload-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Label Editor</h1>
+
+    <!-- Label Rows -->
+    <div id="label-container">
+        <!-- Row 1 -->
+        <div class="label-row">
+            <div class="label" data-id="1">
+                <img src="static/defaultimages/Blank.jpg" alt="Blank" class="label-image">
+                <input type="text" class="label-text" placeholder="Enter text" maxlength="25" oninput="validateTextInput(this)">
+                <button class="stretch-button" onclick="stretchLabel(this)">+</button>
+                <button class="shrink-button" onclick="shrinkLabel(this)">-</button>
+            </div>
+            <!-- Repeat for 13 labels -->
+            {% for i in range(2, 14) %}
+            <div class="label" data-id="{{ i }}">
+                <img src="static/defaultimages/Blank.jpg" alt="Blank" class="label-image">
+                <input type="text" class="label-text" placeholder="Enter text" maxlength="25" oninput="validateTextInput(this)">
+                <button class="stretch-button" onclick="stretchLabel(this)">+</button>
+                <button class="shrink-button" onclick="shrinkLabel(this)">-</button>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Row 2 -->
+        <div class="label-row">
+            {% for i in range(14, 27) %}
+            <div class="label" data-id="{{ i }}">
+                <img src="static/defaultimages/Blank.jpg" alt="Blank" class="label-image">
+                <input type="text" class="label-text" placeholder="Enter text" maxlength="25" oninput="validateTextInput(this)">
+                <button class="stretch-button" onclick="stretchLabel(this)">+</button>
+                <button class="shrink-button" onclick="shrinkLabel(this)">-</button>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Row 3 -->
+        <div class="label-row">
+            {% for i in range(27, 40) %}
+            <div class="label" data-id="{{ i }}">
+                <img src="static/defaultimages/Blank.jpg" alt="Blank" class="label-image">
+                <input type="text" class="label-text" placeholder="Enter text">
+                <button class="stretch-button" onclick="stretchLabel(this)">+</button>
+                <button class="shrink-button" onclick="shrinkLabel(this)">-</button>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Compile Button -->
+        <div class="label-row">
+            <button class="upload-button" onclick="compileLabels()">Compile</button>
+        </div>
+    </div>
+
+    <!-- Image Slider -->
+    <div class="image-slider">
+        <div class="slider" id="image-slider">
+            <!-- Images will be dynamically added here -->
+        </div>
+        <button class="upload-button" onclick="document.getElementById('file-input').click()">Upload Image</button>
+        <input type="file" id="file-input" style="display: none;" onchange="uploadImage(this)">
+    </div>
+
+    <script>
+        // Fetch images from the server and populate the slider
+        document.addEventListener("DOMContentLoaded", function () {
+            fetch('/get-images')
+                .then(response => response.json())
+                .then(images => {
+                    const slider = document.getElementById('image-slider');
+                    images.forEach(img => {
+                        const imgElement = document.createElement('img');
+                        imgElement.src = `/static/images/${img}`;
+                        imgElement.classList.add('slider-image');
+                        imgElement.onclick = () => selectImage(imgElement.src);
+                        slider.appendChild(imgElement);
+                    });
+                });
+        });
+
+        function validateTextInput(input) {
+            input.value = input.value.replace(/[^a-zA-Z0-9 ]/g, ''); // Remove non-alphanumeric characters
+        }
+
+
+        function compileLabels() {
+            let labelData = [];
+            const rows = document.querySelectorAll('.label-row');
+
+            rows.forEach((row, rowIndex) => {
+                const labels = row.querySelectorAll('.label');
+
+                labels.forEach((label, labelIndex) => {
+                    let imageSrc = label.querySelector('.label-image').src;
+                    let caption = label.querySelector('.label-text').value;
+                    let width = parseInt(label.style.width || 18);
+
+                    labelData.push({
+                        row: rowIndex + 1,
+                        position: labelIndex + 1,
+                        width: width,
+                        image: imageSrc,
+                        caption: caption
+                    });
+                });
+            });
+
+            // Send label data to the server
+            fetch('/compile-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(labelData),
+            })
+            .then(response => {
+                if (response.ok) {
+                    // Trigger the download of the PDF
+                    return response.blob().then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'labels.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                    });
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Failed to compile PDF');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message);
+            });
+        }
+
+        // Select a label
+        const labels = document.querySelectorAll('.label');
+        let selectedLabel = null;
+
+        labels.forEach(label => {
+            label.addEventListener('click', () => {
+                // Remove 'selected' class from the previously selected label (if any)
+                if (selectedLabel) {
+                    selectedLabel.classList.remove('selected');
+                    hideButtons(selectedLabel); // Hide buttons for the previous label
+                }
+
+                // Update the selected label to the one just clicked
+                selectedLabel = label;
+                selectedLabel.classList.add('selected');
+
+                // Update button visibility only if the label is selected
+                updateButtonVisibility(selectedLabel);
+            });
+        });
+
+        // Update button visibility based on label width & selection status
+        function updateButtonVisibility(label) {
+            if (!label.classList.contains('selected')) return; // Ensure only the selected label is affected
+
+            const stretchButton = label.querySelector('.stretch-button');
+            const shrinkButton = label.querySelector('.shrink-button');
+            const labelWidth = parseInt(label.style.width || 18);
+
+            // Ensure only buttons for the selected label are visible
+            stretchButton.style.display = (labelWidth < 234) ? 'block' : 'none';
+            shrinkButton.style.display = (labelWidth > 18) ? 'block' : 'none';
+        }
+
+        // Hide buttons for a given label
+        function hideButtons(label) {
+            const stretchButton = label.querySelector('.stretch-button');
+            const shrinkButton = label.querySelector('.shrink-button');
+
+            if (stretchButton) stretchButton.style.display = 'none';
+            if (shrinkButton) shrinkButton.style.display = 'none';
+        }
+
+
+        // Select an image from the slider
+        function selectImage(img) {
+            if (selectedLabel) {
+                const labelImage = selectedLabel.querySelector('.label-image');
+                labelImage.src = img.src;
+            }
+        }
+
+        // Stretch a label
+        function stretchLabel(button) {
+            const label = button.parentElement;
+            const nextLabel = label.nextElementSibling;
+            if (nextLabel && nextLabel.classList.contains('label')) {
+                label.style.width = `${parseInt(label.style.width || 18) + 18}mm`;
+                nextLabel.remove();
+                updateButtonVisibility(label);
+            }
+        }
+
+        // Shrink a label
+        // Shrink a label
+        function shrinkLabel(button) {
+            const label = button.parentElement;
+            const labelWidth = parseInt(label.style.width || 18);
+            
+            if (labelWidth > 18) {
+                label.style.width = `${labelWidth - 18}mm`;
+
+                // Create a new label in the available space
+                const newLabel = document.createElement('div');
+                newLabel.className = 'label';
+                newLabel.innerHTML = `
+                    <img src="" alt="Image" class="label-image">
+                    <input type="text" class="label-text" placeholder="Enter text">
+                    <button class="stretch-button" onclick="stretchLabel(this)">+</button>
+                    <button class="shrink-button" onclick="shrinkLabel(this)">-</button>
+                `;
+
+                // Insert the new label next to the current one
+                label.parentElement.insertBefore(newLabel, label.nextSibling);
+
+                // Attach click event to select the newly created label
+                newLabel.addEventListener('click', () => {
+                    if (selectedLabel) {
+                        selectedLabel.classList.remove('selected');
+                        hideButtons(selectedLabel);
+                    }
+                    selectedLabel = newLabel;
+                    selectedLabel.classList.add('selected');
+                    updateButtonVisibility(selectedLabel);
+                });
+
+                updateButtonVisibility(label);
+            }
+        }
+
+
+        // Upload an image
+        function uploadImage(input) {
+            const file = input.files[0];
+
+            if (!file) return;
+
+            // Check file type
+            const allowedTypes = ['image/png', 'image/jpeg'];
+            if (!allowedTypes.includes(file.type)) {
+                alert("Only PNG and JPG images are allowed.");
+                return;
+            }
+
+            // Check file size
+            if (file.size > 1024 * 1024) { // 1MB limit
+                alert("File must be smaller than 1MB.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            }).then(response => {
+                if (response.ok) {
+                    location.reload();
+                }
+            });
+        }
+
+        // Select an image from the slider
+        function selectImage(src) {
+            if (selectedLabel) {
+                const labelImage = selectedLabel.querySelector('.label-image');
+                labelImage.src = src;
+            }
+        }
+        // Rest of your JavaScript code remains the same...
+    </script>
+</body>
+</html>
