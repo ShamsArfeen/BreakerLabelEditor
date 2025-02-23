@@ -67,25 +67,49 @@ def extract_filename_from_url(url):
 def generate_latex(label_data):
     latex_content = """
 \\documentclass{article}
+\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
-\\usepackage[margin=1cm]{geometry}
+\\usepackage[a4paper,landscape,margin=10mm]{geometry}
+\\usepackage{array}
+\\newcolumntype{P}[1]{@{}>{\\raggedright\\arraybackslash}p{#1}@{}}
+\\renewcommand{\\arraystretch}{1.0}
+
 \\begin{document}
-\\pagestyle{empty}
+\\begin{figure}[ht!]
 \\centering
 """
-
-    for label in label_data:
-        # Extract the filename from the image URL
+    rows = [[None for i in range(13)] for j in range(3)]
+    for label in label_data: # row position width image
         image_filename = extract_filename_from_url(label['image'])
-        caption = label['caption']
-        latex_content += f"""
-\\includegraphics[width={label['width']}mm]{{{image_filename}}}
-\\par
-\\textbf{{{caption}}}
-\\vspace{{1cm}}
-"""
+        rows[int(label['row'])-1][int(label['position'])-1] = (image_filename, int(label['width']), label['caption'])
 
+
+    for irow in rows:
+        latex_content += """\\begin{tabular}{|"""
+        for ilabel in irow:
+            if ilabel is None:
+                break
+            latex_content += "P{" + str(ilabel[1]) + "mm}|"
+        latex_content += """}
+\\hline"""
+        for ilabel in irow:
+            if ilabel is None:
+                break
+            latex_content += """\\parbox[c][30mm][c]{""" + str(ilabel[1]) +  """mm}{\\centering
+\\vspace{2mm} 
+\\includegraphics[height=10mm,width=10mm,keepaspectratio]{""" + ilabel[0] + """} \\\\
+\\vspace{2mm} 
+\\small """ + ilabel[2] + """}  &"""
+        latex_content = latex_content[:-1]
+        latex_content += """\\\\
+\\hline
+\\end{tabular}
+
+\\vspace{10mm}
+
+"""
     latex_content += """
+\\end{figure}
 \\end{document}
 """
     return latex_content
@@ -159,7 +183,7 @@ def compile_pdf():
                 print(f"LaTeX compilation error: {error_message}")
                 print(f"pdflatex stdout: {result.stdout.decode('utf-8')}")
                 return jsonify({'success': False, 'error': f'Failed to compile LaTeX: {error_message}'})
-                
+
             # Read the compiled PDF
             pdf_path = os.path.join(temp_dir, 'labels.pdf')
             print(f"PDF path: {pdf_path}")
